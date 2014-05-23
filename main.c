@@ -3,10 +3,19 @@
 /*#include "uvp.h"*/
 
 int main(int argc, char **argv) {
-int ret;
+int i,j,ret;
 double t;
-int  it;
 struct tuple itret;
+
+/*Outfile declarations*/
+FILE *ufile;
+FILE *vfile;
+FILE *uvfile;
+FILE *pfile;
+char ufile_name[25] = "velU.xyd";
+char vfile_name[25] = "velV.xyd";
+char uvfile_name[25] = "velUV.xyd";
+char pfile_name[25] = "pressure.xyd";
 
 t = 0;
 
@@ -48,15 +57,20 @@ if(ret!=0) return(-1); /*if error, exit.*/
 ret = INTI_UVP(imax, jmax, UI, VI, PI);
 if(ret!=0) return(-1); /*if error, exit.*/
 
+
 /*TIME STEPPING***************************************************************/
+printf("\nEnd Time: %0.3f\n",t_end);
+printf("Starting time stepping\n\n");
+
 while(t<=t_end) {
-	printf("\n---\nt = %0.6f",t);
+	printf("\rcurrent t = %0.6f",t);
 	fprintf(log_file,"t: %0.6f ------------------------------\n",t);
 	
-	/*Calculate next time step, tau*/
-	tau = COMP_DELT(delt, imax, jmax, delx, dely, U, V, Re);
-	printf("  (next increment: %0.6f)\n",tau);
-	if(tau<0) return(-1);
+	/*Calculate next time step, dt*/
+	dt = tau * COMP_DELT(delt, imax, jmax, delx, dely, U, V, Re);
+	/*printf("  (next increment: %0.6f)",dt);*/
+	if(dt<0) return(-1);
+	
 
 	/*RESET BOUNDARY CONDITIONS*********************************************/
 	/*Set all of the rectangular boundary conditions*/
@@ -78,7 +92,8 @@ while(t<=t_end) {
 
 	/*Derive new pressure values through SOR iteration*/
 	itret = POISSON();
-	printf(" residual: %0.5f;   iteration: %d\n",itret.res,itret.iterct);
+	/*printf(" residual: %0.5f;   iteration: %d\n",itret.res,itret.iterct);*/
+	printf("  (P residual: %0.6f)",itret.res);
 	if(itret.res<0) return(-1); /*if error, exit.*/
 
 	/*Adapt U and V to next time step!*/
@@ -86,9 +101,48 @@ while(t<=t_end) {
 	if(ret!=0) return(-1); /*if error, exit.*/
 	
 	/*Increment t for next time step*/
-	t+=tau;
+	t+=dt;
 }
 
+/*WRITE OUT RESULTS***********************************************************/
+printf("Finished time iteration!\n");
+printf("\nWriting grids to output files...\n");
+
+ufile  = fopen(ufile_name, "w+");
+vfile  = fopen(vfile_name, "w+");
+uvfile = fopen(uvfile_name, "w+");
+pfile  = fopen(pfile_name, "w+");
+
+if ((((ufile == NULL)||(vfile == NULL))||(pfile == NULL))||(uvfile == NULL)){
+	/*One of the files does not open*/
+	fprintf(log_file, "ERROR[MAIN]: Cannot open HORIZONTAL, VERTICAL, or COMBINED VELOCITY or PRESSURE file=[%s],[%s],[%s]:[%s].\n", ufile_name, vfile_name, pfile_name, strerror(errno));
+	printf("ERROR[MAIN]: Cannot open an output file (HORIZONTAL, VERTICAL, or COMBINED VELOCITY or PRESSURE): [%s],[%s],[%s]:[%s].\n", ufile_name, vfile_name, pfile_name, strerror(errno));
+	return(-1);
+} else if ((ufile != NULL)&&(vfile != NULL)&&(pfile != NULL)&&(uvfile != NULL)){
+	/*All files are good*/
+	fprintf(log_file, "Velocities Files: (h) %s\t(v) %s\t(uv) %s\n", ufile_name,vfile_name,uvfile_name);
+	fprintf(log_file, "Pressure File: %s\n", pfile_name);
+
+	
+	for(i=1;i<=imax;i++){
+		for(j=1;j<=jmax;j++) {
+			fprintf(ufile,"%d\t%d\t%0.3f\n",i,j,U[i][j]);
+			fprintf(vfile,"%d\t%d\t%0.3f\n",i,j,V[i][j]);
+			fprintf(uvfile,"%d\t%d\t%0.3f\t%0.3f\n",i,j,U[i][j],V[i][j]);
+			fprintf(pfile,"%d\t%d\t%0.3f\n",i,j,P[i][j]);
+		}
+	}
+	
+	printf("Velocities Output Files: (h) %s\t(v) %s\t(uv) %s\n", ufile_name,vfile_name,uvfile_name);
+	printf("Pressure Output File: %s\n", pfile_name);
+}
+
+	fclose(ufile);
+	fclose(vfile);
+	fclose(uvfile);
+	fclose(pfile);
+
+printf("\nFlowt Complete.\n");
 
 return(0);
 }

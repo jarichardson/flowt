@@ -73,6 +73,11 @@ while (fgets(line, MAX_LINE, in_config) != NULL) {
 		t_end = strtod(value,&ptr);
 		fprintf(log_file, ">t_end %.3f\n", t_end);
 	}
+	else if (!strncmp(var, "tau", strlen("tau"))) {
+		/*printf("%s is %s\n", var,value);*/
+		tau = strtod(value,&ptr);
+		fprintf(log_file, ">tau %.3f\n", tau);
+	}
 	else if (!strncmp(var, "eps", strlen("eps"))) {
 		/*printf("%s is %s\n", var,value);*/
 		eps = strtod(value,&ptr);
@@ -289,7 +294,7 @@ int INTI_UVP(int imax, int jmax, double UI, double VI, double PI){
 }
 
 double COMP_DELT(double delt, int imax, int jmax, double delx, double dely, double** U, double** V, double Re){
-/* Calculate delt stepsize from (3.50). If tau<0, use delt from configuration file.*/
+/* Calculate delt stepsize from (3.50). If mintau<0, use delt from configuration file.*/
 	double tauRe;
 	double tauX;
 	double tauY;
@@ -341,7 +346,7 @@ double COMP_DELT(double delt, int imax, int jmax, double delx, double dely, doub
 		return(-1);
 	}
 	
-	fprintf(log_file, "tau = %0.6f\n",tauMin);
+	fprintf(log_file, "tauMin = %0.6f\n",tauMin);
 	fprintf(log_file, "EXIT[COMP_DELT]\n\n");
 	return(tauMin);
 

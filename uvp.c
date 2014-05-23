@@ -21,13 +21,15 @@ int COMP_FG(){
 	double RS; /*Right Hand Side*/
 	
 	fprintf(log_file,"ENTER[COMP_FG]\n");
-
+	
+	gamma = upwind;
+	
 	/*Block F*/
 	fprintf(log_file,"Deriving F, ");
 	for(i=1;i<=(imax-1);i++) {
 		for(j=1;j<=jmax;j++) {
 			/*  Set gamma = to the max of u*dt/dx and v*dt/dy  */
-			if((gamma = abs(U[i][j]*tau/delx)) < abs(V[i][j]*tau/dely)) gamma = abs(V[i][j]/dely) ;
+			/*if((gamma = abs(U[i][j]*dt/delx)) < abs(V[i][j]*dt/dely)) gamma = abs(V[i][j]/dely) ;*/
 			
 			/*Calculate diffusive terms (Eq. 3.19a)*/
 			ddu_dxx = (U[i+1][j] - (2*U[i][j]) + U[i-1][j])/(delx*delx);
@@ -44,7 +46,7 @@ int COMP_FG(){
 			
 			/*FINAL ADDITION*/
 			RS = ((ddu_dxx + ddu_dyy)/Re) - duu_dx - duv_dy + GX;
-			RS *= tau;
+			RS *= dt;
 			
 			F[i][j] = U[i][j] + RS;
 		}	
@@ -55,7 +57,7 @@ int COMP_FG(){
 	for(i=1;i<=imax;i++) {
 		for(j=1;j<=(jmax-1);j++) {
 			/*  Set gamma = to the max of u*dt/dx and v*dt/dy  */
-			if((gamma = abs(U[i][j]*tau/delx)) < abs(V[i][j]*tau/dely)) gamma = abs(V[i][j]/dely) ;
+			if((gamma = abs(U[i][j]*dt/delx)) < abs(V[i][j]*dt/dely)) gamma = abs(V[i][j]/dely) ;
 			
 			/*Calculate diffusive terms (Eq. 3.19b)*/
 			ddv_dxx = (V[i+1][j] - (2*V[i][j]) + V[i-1][j])/(delx*delx);
@@ -72,7 +74,7 @@ int COMP_FG(){
 			
 			/*FINAL ADDITION*/
 			RS = ((ddv_dxx + ddv_dyy)/Re) - dvv_dy - duv_dx + GY;
-			RS *= tau;
+			RS *= dt;
 			
 			G[i][j] = V[i][j] + RS;
 		
@@ -109,7 +111,7 @@ int COMP_RHS(){
 		for(j=1;j<=jmax;j++) {
 			RHS[i][j]  = (F[i][j] - F[i-1][j]) / delx;
 			RHS[i][j] += (G[i][j] - G[i][j-1]) / dely;
-			RHS[i][j] /= tau;
+			RHS[i][j] /= dt;
 		}
 	}
 		
@@ -185,7 +187,7 @@ struct Tuple getPair() {
 	int i,j,it,ret;
 
 	fprintf(log_file,"ENTER[POISSON]\n");
-	printf("  pressure: ");
+	/*printf("  pressure: ");*/
 	
 	/*square dx and dy for later*/
 	dx2 = delx*delx;
@@ -306,15 +308,15 @@ int ADAP_UV(){
 /*Calculate new velocities from Eq (3.34) & (3.35).*/
 	/*Recalculate U from new pressures and old-ish F*/
 	int i,j;
-	FILE *ufile;
+/*	FILE *ufile;
 	FILE *vfile;
 	char ufile_name[25] = "velU.xyv";
-	char vfile_name[25] = "velV.xyv";
+	char vfile_name[25] = "velV.xyv";*/
 	fprintf(log_file,"ENTER[ADAP_UV]\n");
 	
 	for(i=1;i<=imax-1;i++){
 		for(j=1;j<=jmax;j++) {
-			U[i][j] = F[i][j] - ((tau/delx) * (P[i+1][j] - P[i][j]));
+			U[i][j] = F[i][j] - ((dt/delx) * (P[i+1][j] - P[i][j]));
 		}
 	}
 	
@@ -322,20 +324,20 @@ int ADAP_UV(){
 	/*Recalculate V from new pressures and old-ish G*/
 	for(i=1;i<=imax;i++){
 		for(j=1;j<=jmax-1;j++) {
-			V[i][j] = G[i][j] - ((tau/dely) * (P[i][j+1] - P[i][j]));
+			V[i][j] = G[i][j] - ((dt/dely) * (P[i][j+1] - P[i][j]));
 		}
 	}
 	
-	
+/*	
 	ufile  = fopen(ufile_name, "w+");
 	vfile  = fopen(vfile_name, "w+");
 	
 	if ((ufile == NULL)&&(vfile == NULL)){
-		/*BOTH ARE BAD*/
+		BOTH ARE BAD
 		fprintf(stderr, "ERROR[ADAP_UV]: Cannot open HORIZONTAL and VERTICAL VELOCITY files=[%s],[%s]:[%s]. Continuing!\n", ufile_name, vfile_name, strerror(errno));
 		return(0);
 	} else if ((ufile != NULL)&&(vfile != NULL)){
-		/*BOTH ARE GOOD*/
+		BOTH ARE GOOD
 		fprintf(log_file, "Velocities Files: (h) %s\t(v) %s\n", ufile_name,vfile_name);
 		
 		for(i=1;i<=imax;i++){
@@ -347,12 +349,12 @@ int ADAP_UV(){
 		
 		printf("  Velocities Files: (h) %s\t(v) %s\n", ufile_name,vfile_name);
 	
-	} else { /*ONE IS BAD NOT BOTH*/
+	} else { ONE IS BAD NOT BOTH
 	
 		if (ufile == NULL) {
 			fprintf(stderr, "ERROR[ADAP_UV]: Cannot open HORIZONTAL VELOCITY file=[%s]:[%s]. Continuing!\n", ufile_name, strerror(errno));
 			
-			/*VFILE IS STILL GOOD*/
+			VFILE IS STILL GOOD
 			for(i=1;i<=imax;i++){
 				for(j=1;j<=jmax;j++) {
 					fprintf(vfile,"%d\t%d\t%0.3f\n",i,j,V[i][j]);
@@ -367,7 +369,7 @@ int ADAP_UV(){
 		if (vfile == NULL) {
 			fprintf(stderr, "ERROR[ADAP_UV]: Cannot open VERTICAL VELOCITY file=[%s]:[%s]. Continuing!\n", vfile_name, strerror(errno));
 			
-			/*UFILE IS STILL GOOD*/
+			UFILE IS STILL GOOD
 			for(i=1;i<=imax;i++){
 				for(j=1;j<=jmax;j++) {
 					fprintf(ufile,"%d\t%d\t%0.3f\n",i,j,U[i][j]);
@@ -385,6 +387,8 @@ int ADAP_UV(){
 
 	fclose(ufile);
 	fclose(vfile);
+	
+*/
 	
 	fprintf(log_file,"EXIT[ADAP_UV]\n");
 	return(0);

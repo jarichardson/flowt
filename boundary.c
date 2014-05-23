@@ -3,7 +3,7 @@
 
 int SETSPECBCOND(){
 /*Set special boundary conditions from the parameter problem, including inflow values*/
-	int j;
+	int i,j;
 	
 /*	printf("\nSolving model: ");*/
 	fprintf(log_file,"ENTER[SETSPECBCOND]\n");
@@ -17,6 +17,13 @@ int SETSPECBCOND(){
 		}
 	} 
 	
+	
+	if (!strncmp(problem, "LIDFLOW", strlen("LIDFLOW"))) {
+		/*Set top boundary to right motion*/
+			for(i=1;i<=imax;i++) {
+				U[i][jmax+1] = 2.0 - U[i][jmax];
+		}
+	} 
 	else {
 		printf("ERROR[SETSPECBCOND]: Model Not Found. Check variable 'problem'.\n");
 		return(-1);
@@ -188,7 +195,7 @@ else if(wN==2) {
 	/*U[i][jmax+1] must = -1*U[i][jmax], so average = 0*/	
 	for(i=1;i<=imax;i++) {
 		V[i][jmax] = 0;
-		U[i][jmax] = -1*U[i][jmax];	
+		U[i][jmax+1] = -1*U[i][jmax];	
 	}
 }
 else if(wN==3) {

@@ -22,7 +22,8 @@ double dely;
 
 /* Time-stepping data */
 double t_end;
-double delt;
+double delt; /*user time step*/
+double dt; /*actual time step*/
 double tau;
 
 /* Pressure-iteration data */
